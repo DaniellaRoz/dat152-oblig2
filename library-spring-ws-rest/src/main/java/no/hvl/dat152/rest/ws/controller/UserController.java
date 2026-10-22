@@ -24,6 +24,12 @@ import no.hvl.dat152.rest.ws.exceptions.UserNotFoundException;
 import no.hvl.dat152.rest.ws.model.Order;
 import no.hvl.dat152.rest.ws.model.User;
 import no.hvl.dat152.rest.ws.service.UserService;
+//new imports
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
+
+import org.springframework.hateoas.Link;
+import org.springframework.hateoas.server.mvc.WebMvcLinkBuilder;
 
 /**
  * @author tdoy
@@ -145,24 +151,44 @@ public class UserController {
 
 	}
 	
-	@PostMapping("users/{id}/orders")
-	public ResponseEntity<User> createUserOrder(@RequestBody Order order, @PathVariable Long userid) {
-		
-		User user = userService.createOrdersForUser(userid, order);
-		
-		
-		Link link = linkTo(methodOn(UserController.class).getUserOrder(userid, order.getId()));
-		
-		link.
-		if (user == null) {
 
-			return new ResponseEntity<>(user, HttpStatus.BAD_REQUEST);
+@PostMapping("users/{userid}/orders")
+public ResponseEntity<User> createUserOrder(
+        @RequestBody Order order,
+        @PathVariable Long userid) {
 
-		}
+    User user = userService.createOrdersForUser(userid, order);
 
-		return new ResponseEntity<>(user, HttpStatus.CREATED);
+    if (user == null) {
+        return new ResponseEntity<>(user, HttpStatus.BAD_REQUEST);
+    }
 
-	}
+    Order createdOrder = user.getOrders().stream()
+            .filter(o -> o.getIsbn().equals(order.getIsbn())
+                    && o.getExpiry().equals(order.getExpiry()))
+            .findFirst()
+            .orElseThrow(() -> new IllegalStateException(
+                    "Created order not found in user's orders"));
+
+    Link selfLink = linkTo(methodOn(UserController.class)
+            .getUserOrder(userid, createdOrder.getId()))
+            .withSelfRel();
+
+    Link ordersLink = linkTo(methodOn(UserController.class)
+            .getUserOrders(userid))
+            .withRel("orders");
+
+    Link deleteLink = linkTo(methodOn(UserController.class)
+            .deleteUserOrder(userid, createdOrder.getId()))
+            .withRel("delete");
+
+    createdOrder.add(selfLink);
+    createdOrder.add(ordersLink);
+    createdOrder.add(deleteLink);
+
+    return new ResponseEntity<>(user, HttpStatus.CREATED);
+}
+
 
 	
 }
