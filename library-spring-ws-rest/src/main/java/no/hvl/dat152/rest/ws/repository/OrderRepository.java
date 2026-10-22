@@ -33,4 +33,9 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 	@Query(value = "SELECT * FROM orders WHERE user_id = :id", nativeQuery=true)
 	List<Order> findByUserId(Long id);
 	
+	//New query
+	@Query(value = "SELECT * FROM orders LIMIT :limit OFFSET :offset", nativeQuery=true)
+	List<Order> findAllPageable(
+			@Param("limit") int limit,
+			@Param("offset") int offset);
 }

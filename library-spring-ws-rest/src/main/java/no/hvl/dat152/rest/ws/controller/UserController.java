@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.hateoas.Link;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -148,7 +149,11 @@ public class UserController {
 	public ResponseEntity<User> createUserOrder(@RequestBody Order order, @PathVariable Long userid) {
 		
 		User user = userService.createOrdersForUser(userid, order);
-
+		
+		
+		Link link = linkTo(methodOn(UserController.class).getUserOrder(userid, order.getId()));
+		
+		link.
 		if (user == null) {
 
 			return new ResponseEntity<>(user, HttpStatus.BAD_REQUEST);

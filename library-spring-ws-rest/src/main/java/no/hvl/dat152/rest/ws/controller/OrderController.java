@@ -47,7 +47,7 @@ public class OrderController {
 		if (expiry != null)
 			orders = orderService.findByExpiryDate(LocalDate.parse(expiry), pageable);
 		else
-			orders = orderService.findAllOrders();
+			orders = orderService.findAllOrders(pageable);
 
 		if (orders.isEmpty())
 			return new ResponseEntity<>(HttpStatus.NOT_FOUND);

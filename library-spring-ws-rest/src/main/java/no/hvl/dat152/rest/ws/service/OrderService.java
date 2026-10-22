@@ -47,9 +47,11 @@ public class OrderService {
 
 	}
 	
-	public List<Order> findAllOrders() {
+	public List<Order> findAllOrders(Pageable page) {
 
-		return orderRepository.findAll();
+		return orderRepository.findAllPageable(
+				page.getPageSize(),
+				(int) page.getOffset());
 
 	}
 	

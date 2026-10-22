@@ -130,7 +130,20 @@ public class UserService {
 		
 		try {
 
-			findUser(userid); // Just to check if user exists at all
+			//findUser(userid); // Just to check if user exists at all
+			
+			User user = findUser(userid);
+			
+			Order order = getUserOrder(userid, oid);
+			
+			if (order == null) {
+				return;
+			}
+			
+			user.removeOrder(order);
+			userRepository.save(user);
+			
+			orderRepository.deleteById(oid);
 
 		} catch (UserNotFoundException e) {
 
@@ -138,12 +151,12 @@ public class UserService {
 
 		}
 
-		Order order = getUserOrder(userid, oid);
+		/*Order order = getUserOrder(userid, oid);
 
 		if (order == null)
 			return;
 
-		orderRepository.delete(order);
+		orderRepository.deleteById(order.getId());*/
 
 	}
 	
