@@ -133,7 +133,7 @@ class TestBook {
 
 	private Book createRandomBook() throws AuthorNotFoundException {
 
-		Author savedAuthor = authorService.findById(4L);
+		Author savedAuthor = authorService.findById(4); // Changed from supplied test which passed 4L
 
 		Set<Author> authors = new HashSet<Author>();
 		authors.add(savedAuthor);

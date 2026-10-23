@@ -6,7 +6,6 @@ package no.hvl.dat152.rest.ws.controller;
 import java.util.List;
 import java.util.Set;
 
-import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.hateoas.Link;
 import org.springframework.http.HttpStatus;
@@ -22,11 +21,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import no.hvl.dat152.rest.ws.exceptions.OrderNotFoundException;
-import no.hvl.dat152.rest.ws.exceptions.UnauthorizedOrderActionException;
 import no.hvl.dat152.rest.ws.exceptions.UserNotFoundException;
 import no.hvl.dat152.rest.ws.model.Order;
 import no.hvl.dat152.rest.ws.model.User;
 import no.hvl.dat152.rest.ws.service.UserService;
+//new imports
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
 
 /**
  * @author tdoy
@@ -35,6 +36,164 @@ import no.hvl.dat152.rest.ws.service.UserService;
 @RequestMapping("/elibrary/api/v1")
 public class UserController {
 
-	// TODO authority annotation
+	@Autowired
+	private UserService userService;
+	
+	@PreAuthorize("hasAuthority('ADMIN')")
+	@GetMapping("/users")
+	public ResponseEntity<Object> getUsers(){
+		
+		List<User> users = userService.findAllUsers();
+		
+		if(users.isEmpty())
+			
+			return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+		else
+			return new ResponseEntity<>(users, HttpStatus.OK);
+	}
+	
+	@PreAuthorize("hasAuthority('ADMIN') or @userSecurity.isCurrentUser(#id)")
+	@GetMapping(value = "/users/{id}")
+	public ResponseEntity<Object> getUser(@PathVariable Long id) throws UserNotFoundException, OrderNotFoundException{
+		
+		User user = userService.findUser(id);
+		
+		return new ResponseEntity<>(user, HttpStatus.OK);	
+		
+	}
+
+	@PreAuthorize("hasAuthority('ADMIN')")
+	@PostMapping(value = "/users")
+	public ResponseEntity<User> createUser(@RequestBody User user) {
+
+		User newUser = userService.saveUser(user);
+
+		if (newUser == null)
+			return new ResponseEntity<>(newUser, HttpStatus.BAD_REQUEST);
+
+		return new ResponseEntity<>(newUser, HttpStatus.CREATED);
+
+	}
+
+	@PreAuthorize("hasAuthority('ADMIN') or @userSecurity.isCurrentUser(#id)")
+	@PutMapping(value = "/users/{id}")
+	public ResponseEntity<User> updateUser(@RequestBody User user, @PathVariable Long id) {
+
+		User updatedUser = userService.updateUser(user, id);
+
+		if (updatedUser == null)
+			return new ResponseEntity<>(updatedUser, HttpStatus.BAD_REQUEST);
+
+		return new ResponseEntity<>(updatedUser, HttpStatus.OK);
+
+	}
+
+
+	@PreAuthorize("hasAuthority('ADMIN') or @userSecurity.isCurrentUser(#id)")
+	@DeleteMapping("users/{id}")
+	public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
+
+		try {
+
+			userService.deleteUser(id);
+
+		} catch (UserNotFoundException e) {
+
+			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+
+		}
+
+		return new ResponseEntity<>(HttpStatus.OK);
+
+	}
+
+	@PreAuthorize("hasAuthority('ADMIN') or @userSecurity.isCurrentUser(#id)")
+	@GetMapping("users/{id}/orders")
+	public ResponseEntity<Set<Order>> getUserOrders(@PathVariable Long id) {
+
+		Set<Order> orders = userService.getUserOrders(id);
+
+		if (orders == null)
+			return ResponseEntity.notFound().build();
+
+		return new ResponseEntity<>(orders, HttpStatus.OK);
+
+	}
+	
+	@PreAuthorize("hasAuthority('ADMIN') or @userSecurity.isCurrentUser(#uid)")
+	@GetMapping("users/{uid}/orders/{oid}")
+	public ResponseEntity<Order> getUserOrder(@PathVariable Long uid, @PathVariable Long oid) {
+
+		Order order = userService.getUserOrder(uid, oid);
+
+		if (order == null)
+			return ResponseEntity.notFound().build();
+
+		return new ResponseEntity<>(order, HttpStatus.OK);
+
+	}
+
+	@PreAuthorize("hasAuthority('ADMIN') or @userSecurity.isCurrentUser(#uid)")
+	@DeleteMapping("users/{uid}/orders/{oid}")
+	public ResponseEntity<Void> deleteUserOrder(@PathVariable Long uid, @PathVariable Long oid) {
+
+		try {
+
+			userService.findUser(uid);
+
+		} catch (UserNotFoundException e) {
+
+			return ResponseEntity.notFound().build();
+
+		}
+
+		if (userService.getUserOrder(uid, oid) == null)
+
+			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+
+		userService.deleteOrderForUser(uid, oid);
+		
+		return new ResponseEntity<>(HttpStatus.OK);
+
+	}
+	
+	@PreAuthorize("hasAuthority('ADMIN') or @userSecurity.isCurrentUser(#userid)")
+	@PostMapping("users/{userid}/orders")
+	public ResponseEntity<User> createUserOrder(
+			@RequestBody Order order,
+			@PathVariable Long userid) {
+
+		User user = userService.createOrdersForUser(userid, order);
+
+		if (user == null) {
+			return new ResponseEntity<>(user, HttpStatus.BAD_REQUEST);
+		}
+
+		Order createdOrder = user.getOrders().stream()
+				.filter(o -> o.getIsbn().equals(order.getIsbn())
+						&& o.getExpiry().equals(order.getExpiry()))
+				.findFirst()
+				.orElseThrow(() -> new IllegalStateException(
+						"Created order not found in user's orders"));
+
+		Link selfLink = linkTo(methodOn(UserController.class)
+				.getUserOrder(userid, createdOrder.getId()))
+				.withSelfRel();
+
+		Link ordersLink = linkTo(methodOn(UserController.class)
+				.getUserOrders(userid))
+				.withRel("orders");
+
+		Link deleteLink = linkTo(methodOn(UserController.class)
+				.deleteUserOrder(userid, createdOrder.getId()))
+				.withRel("delete");
+
+		createdOrder.add(selfLink);
+		createdOrder.add(ordersLink);
+		createdOrder.add(deleteLink);
+
+		return new ResponseEntity<>(user, HttpStatus.CREATED);
+
+	}
 	
 }
